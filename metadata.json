@@ -1,0 +1,6 @@
+{
+  "name": "Mausam - National Weather Observatory & Persona Advisory Portal",
+  "description": "Official meteorological portal inspired by India Meteorological Department (Mausam), featuring dedicated advisory intelligence for Health, Fitness, Surfers & Beachgoers, Travelers, Parents, Agriculture, Commuters, Event Planners, and Sports enthusiasts with bilingual voice alerts and live simulation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
