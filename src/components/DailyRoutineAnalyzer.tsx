@@ -1,11 +1,12 @@
 import React from 'react';
 import { Clock, ShieldCheck, AlertTriangle, AlertCircle } from 'lucide-react';
-import { HourlyForecast, PersonaType, WeatherData } from '../types/weather';
+import { HourlyForecast, PersonaType, WeatherData, SupportedLanguage } from '../types/weather';
+import { t } from '../data/translations';
 
 interface DailyRoutineAnalyzerProps {
   weather: WeatherData;
   hourly: HourlyForecast[];
-  language: 'en' | 'hi';
+  language: SupportedLanguage;
   selectedPersonas: PersonaType[];
 }
 
@@ -130,18 +131,16 @@ export const DailyRoutineAnalyzer: React.FC<DailyRoutineAnalyzerProps> = ({
           </div>
           <div>
             <h3 className="text-xs sm:text-sm font-bold text-white">
-              {language === 'hi' ? 'दैनिक दिनचर्या मौसम विश्लेषक' : 'Daily Routine Weather Analyzer'}
+              {t('routineAnalyzer', language)}
             </h3>
             <span className="text-[10px] text-slate-400">
-              {language === 'hi'
-                ? 'आपके चयनित रोल अनुसार घंटों का लाइव विश्लेषण'
-                : 'Live hour-by-hour impact for your selected roles'}
+              {t('routineSubtitle', language)}
             </span>
           </div>
         </div>
 
         <span className="text-[10px] font-mono-data text-cyan-300 bg-[#030e20] px-2 py-0.5 rounded border border-blue-900/50">
-          {activeSlots.length} {language === 'hi' ? 'समय स्लॉट' : 'time slots'}
+          {activeSlots.length} {t('timeSlots', language)}
         </span>
       </div>
 

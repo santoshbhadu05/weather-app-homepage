@@ -17,7 +17,7 @@ import {
   ChevronRight,
   Maximize2,
 } from 'lucide-react';
-import { DailyForecast, HourlyForecast, WeatherData } from '../types/weather';
+import { DailyForecast, HourlyForecast, WeatherData, SupportedLanguage } from '../types/weather';
 
 interface FullWeatherModalProps {
   weather: WeatherData;
@@ -25,7 +25,7 @@ interface FullWeatherModalProps {
   daily: DailyForecast[];
   isOpen: boolean;
   onClose: () => void;
-  language: 'en' | 'hi';
+  language: SupportedLanguage;
 }
 
 export const FullWeatherModal: React.FC<FullWeatherModalProps> = ({

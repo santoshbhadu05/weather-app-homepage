@@ -5,21 +5,19 @@ import {
   VolumeX,
   Languages,
   Clock,
-  Search,
-  Sparkles,
   Compass,
-  Radio,
   Navigation,
-  CheckCircle2,
+  ChevronDown,
 } from 'lucide-react';
-import { WeatherStation } from '../types/weather';
+import { WeatherStation, SupportedLanguage, RECOGNIZED_INDIAN_LANGUAGES } from '../types/weather';
 import { METEOROLOGICAL_STATIONS } from '../data/mockStations';
+import { t } from '../data/translations';
 
 interface HeaderProps {
   currentStation: WeatherStation;
   onSelectStation: (station: WeatherStation) => void;
-  language: 'en' | 'hi';
-  onToggleLanguage: () => void;
+  language: SupportedLanguage;
+  onSelectLanguage: (lang: SupportedLanguage) => void;
   onOpenBulletin: () => void;
   isSimulated: boolean;
   onResetSimulation: () => void;
@@ -33,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentStation,
   onSelectStation,
   language,
-  onToggleLanguage,
+  onSelectLanguage,
   onOpenBulletin,
   isSimulated,
   onResetSimulation,
@@ -43,8 +41,11 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
 }) => {
   const [istTime, setIstTime] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState<boolean>(false);
+
+  const currentLangMeta =
+    RECOGNIZED_INDIAN_LANGUAGES.find((l) => l.code === language) ||
+    RECOGNIZED_INDIAN_LANGUAGES[0];
 
   useEffect(() => {
     const updateTime = () => {
@@ -70,23 +71,16 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(interval);
   }, [language]);
 
-  const filteredStations = METEOROLOGICAL_STATIONS.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.state.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <header className="sticky top-0 z-40 bg-slate-950 border-b border-slate-800 shadow-md">
       {/* 1. Indian National Flag Tricolor Accent Ribbon */}
       <div className="h-1 w-full bg-tiranga"></div>
 
       {/* 2. Official Government of India & IMD Masthead Topbar */}
-      <div className="bg-[#061838] border-b border-blue-900/60 text-slate-200 px-4 sm:px-6 lg:px-8 py-2">
+      <div className="bg-[#061838] border-b border-blue-900/60 text-slate-200 px-3 sm:px-6 lg:px-8 py-2">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2 text-xs">
           {/* Government of India & MoES title */}
           <div className="flex items-center gap-3">
-            {/* National Emblem Badge representation */}
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center p-1 shrink-0">
                 <Compass className="h-5 w-5 text-amber-400" />
@@ -115,31 +109,62 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Clock & Language */}
-          <div className="flex items-center gap-3 font-mono-data text-[11px] text-slate-300">
+          {/* Clock & Recognized Indian Languages Dropdown */}
+          <div className="flex items-center gap-2 font-mono-data text-[11px] text-slate-300 relative">
             <div className="flex items-center gap-1.5 bg-[#031128] px-2.5 py-1 rounded-md border border-blue-900/50">
               <Clock className="h-3 w-3 text-amber-400" />
               <span className="text-amber-300">{istTime}</span>
             </div>
 
-            <button
-              onClick={onToggleLanguage}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-900/50 hover:bg-blue-800 text-slate-200 border border-blue-700/60 text-[11px] font-medium transition cursor-pointer"
-              title="Change Language"
-            >
-              <Languages className="h-3 w-3 text-cyan-300" />
-              <span>{language === 'en' ? 'हिन्दी' : 'English'}</span>
-            </button>
+            {/* Indian Languages Selector */}
+            <div className="relative">
+              <button
+                onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-900/60 hover:bg-blue-800 text-slate-100 border border-blue-700/60 text-[11px] font-medium transition cursor-pointer"
+                title="Select Recognized Indian Language"
+              >
+                <Languages className="h-3.5 w-3.5 text-cyan-300" />
+                <span className="font-bold">{currentLangMeta.nativeName}</span>
+                <ChevronDown className="h-3 w-3 opacity-75" />
+              </button>
+
+              {isLangMenuOpen && (
+                <div className="absolute right-0 mt-1 w-52 max-h-72 overflow-y-auto bg-[#041026] border border-blue-800 rounded-xl shadow-2xl z-50 p-1.5 space-y-0.5">
+                  <div className="text-[10px] uppercase font-bold text-slate-400 px-2 py-1 border-b border-blue-900/50">
+                    भारत की 8वीं अनुसूची भाषाएँ (Official)
+                  </div>
+                  {RECOGNIZED_INDIAN_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => {
+                        onSelectLanguage(lang.code);
+                        setIsLangMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer ${
+                        language === lang.code
+                          ? 'bg-blue-600 text-white font-bold'
+                          : 'text-slate-200 hover:bg-blue-950'
+                      }`}
+                    >
+                      <span>{lang.nativeName}</span>
+                      <span className="text-[10px] text-slate-400 font-mono-data">
+                        {lang.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* 3. Main Mausam App Action Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* App Title & Logo */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
           <div className="flex items-center gap-2">
-            <div className="bg-gradient-to-br from-blue-700 to-indigo-900 text-white font-black text-base px-2.5 py-1 rounded-lg border border-blue-500/40 shadow">
+            <div className="bg-gradient-to-br from-blue-700 to-indigo-900 text-white font-black text-base px-2.5 py-0.5 rounded-lg border border-blue-500/40 shadow">
               मौसम
             </div>
             <div>
@@ -150,7 +175,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 -mt-0.5">
-                {language === 'hi' ? 'राष्ट्रीय मौसम वेधशाला एवं परामर्श' : 'National Weather Observatory Portal'}
+                {t('portalSubtitle', language)}
               </p>
             </div>
           </div>
@@ -165,13 +190,13 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             {isPlayingAudio ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-            <span>{language === 'hi' ? 'बुलेटिन' : 'Audio'}</span>
+            <span>{isPlayingAudio ? t('stopAudio', language) : t('audioBulletin', language)}</span>
           </button>
         </div>
 
         {/* Center/Right: City Search & Switcher with GPS button */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* Station dropdown / quick search */}
+          {/* Station dropdown */}
           <div className="relative flex-1 sm:w-72">
             <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus-within:border-blue-500 transition">
               <MapPin className="h-3.5 w-3.5 text-amber-400 shrink-0" />
@@ -196,7 +221,6 @@ export const Header: React.FC<HeaderProps> = ({
           {/* GPS Quick Location Button */}
           <button
             onClick={() => {
-              // Select capital New Delhi or nearest
               onSelectStation(METEOROLOGICAL_STATIONS[0]);
             }}
             className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
@@ -217,28 +241,27 @@ export const Header: React.FC<HeaderProps> = ({
             {isPlayingAudio ? (
               <>
                 <VolumeX className="h-3.5 w-3.5" />
-                <span>{language === 'hi' ? 'ऑडियो रोकें' : 'Stop Audio'}</span>
+                <span>{t('stopAudio', language)}</span>
               </>
             ) : (
               <>
                 <Volume2 className="h-3.5 w-3.5" />
-                <span>{language === 'hi' ? 'मौसम बुलेटिन' : 'Voice Bulletin'}</span>
+                <span>{t('audioBulletin', language)}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* 4. Official Mausam Tabs Navigation */}
-      <div className="bg-[#0b1f3f] border-t border-blue-900/40 px-4 sm:px-6 lg:px-8">
+      {/* 4. Official Mausam Tabs Navigation in Selected Language */}
+      <div className="bg-[#0b1f3f] border-t border-blue-900/40 px-3 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
           {[
-            { id: 'nowcast', labelEn: 'Nowcast & Live', labelHi: 'आज का मौसम (लाइव)' },
-            { id: 'forecast', labelEn: '7-Days Forecast', labelHi: '7-दिवसीय पूर्वानुमान' },
-            { id: 'warnings', labelEn: 'IMD Warnings', labelHi: 'चेतावनी मैट्रिक्स' },
-            { id: 'personas', labelEn: '9-Persona Advisories', labelHi: '9-वर्ग परामर्श' },
-            { id: 'radar', labelEn: 'Doppler Radar', labelHi: 'डॉपलर रडार' },
-            { id: 'simulation', labelEn: 'Simulation Lab', labelHi: 'मौसम सिमुलेटर' },
+            { id: 'nowcast' as const },
+            { id: 'forecast' as const },
+            { id: 'warnings' as const },
+            { id: 'routine' as const },
+            { id: 'radar' as const },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -251,7 +274,7 @@ export const Header: React.FC<HeaderProps> = ({
                     : 'text-slate-300 hover:text-white hover:bg-blue-900/40'
                 }`}
               >
-                {language === 'hi' ? tab.labelHi : tab.labelEn}
+                {t(tab.id, language)}
               </button>
             );
           })}

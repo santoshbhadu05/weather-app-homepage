@@ -3,35 +3,36 @@ import {
   Sparkles,
   CloudRain,
   Flame,
-  CloudFog,
   Wind,
-  Sun,
+  Waves,
+  Eye,
   RotateCcw,
 } from 'lucide-react';
 import { PRESET_WEATHER_SCENARIOS } from '../data/weatherScenarios';
-import { WeatherScenario } from '../types/weather';
+import { WeatherScenario, SupportedLanguage } from '../types/weather';
+import { t } from '../data/translations';
 
 interface WeatherSimulationBarProps {
   currentScenarioId: string | null;
   onApplyScenario: (scenario: WeatherScenario) => void;
   onReset: () => void;
-  language: 'en' | 'hi';
+  language: SupportedLanguage;
 }
 
 function getScenarioIcon(id: string) {
   switch (id) {
-    case 'heavy-monsoon':
-      return <CloudRain className="h-3.5 w-3.5 text-cyan-400" />;
-    case 'heatwave-loo':
-      return <Flame className="h-3.5 w-3.5 text-rose-500" />;
-    case 'dense-fog-smog':
-      return <CloudFog className="h-3.5 w-3.5 text-slate-300" />;
-    case 'cyclone-storm':
-      return <Wind className="h-3.5 w-3.5 text-red-500" />;
-    case 'clear-pleasant':
-      return <Sun className="h-3.5 w-3.5 text-amber-400" />;
+    case 'heavy-rain':
+      return <CloudRain className="h-4 w-4 text-cyan-400" />;
+    case 'heatwave':
+      return <Flame className="h-4 w-4 text-rose-400" />;
+    case 'cyclone':
+      return <Waves className="h-4 w-4 text-teal-400" />;
+    case 'fog':
+      return <Eye className="h-4 w-4 text-indigo-400" />;
+    case 'thunderstorm':
+      return <Wind className="h-4 w-4 text-amber-400" />;
     default:
-      return <Sparkles className="h-3.5 w-3.5 text-amber-400" />;
+      return <Sparkles className="h-4 w-4 text-amber-400" />;
   }
 }
 
@@ -42,54 +43,74 @@ export const WeatherSimulationBar: React.FC<WeatherSimulationBarProps> = ({
   language,
 }) => {
   return (
-    <div className="rounded-2xl border border-blue-900/50 bg-[#071936] p-3 sm:p-4 shadow-lg space-y-2">
-      <div className="flex items-center justify-between gap-2">
+    <section
+      aria-label="Meteorological Simulation Lab"
+      className="rounded-2xl border border-blue-900/60 bg-[#071936] p-4 shadow-xl space-y-3"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-900/40 pb-2.5">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30">
-            <Sparkles className="h-3.5 w-3.5" />
+          <div className="p-1.5 rounded-lg bg-amber-400 text-slate-950 font-bold">
+            <Sparkles className="h-4 w-4" />
           </div>
           <div>
-            <h4 className="text-xs sm:text-sm font-bold text-white">
-              {language === 'hi' ? 'मौसम सिमुलेटर (Weather Stress Simulator)' : 'Meteorological Stress Simulator'}
-            </h4>
+            <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+              <span>{t('simLab', language)}</span>
+              <span className="text-[10px] font-mono-data px-1.5 py-0.2 rounded bg-blue-950 text-amber-300 border border-blue-800">
+                Interactive Lab
+              </span>
+            </h3>
+            <p className="text-[10px] text-slate-400">
+              {t('simSubtitle', language)}
+            </p>
           </div>
         </div>
 
         {currentScenarioId && (
           <button
             onClick={onReset}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-950 hover:bg-blue-900 text-[11px] font-semibold text-amber-300 border border-blue-800 transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer self-start sm:self-auto shadow"
           >
-            <RotateCcw className="h-3 w-3" />
-            <span>{language === 'hi' ? 'रीसेट' : 'Reset to Live'}</span>
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>{t('resetLive', language)}</span>
           </button>
         )}
       </div>
 
-      {/* Compact Scenario button strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-0.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
         {PRESET_WEATHER_SCENARIOS.map((sc) => {
           const isActive = currentScenarioId === sc.id;
           return (
             <button
               key={sc.id}
               onClick={() => onApplyScenario(sc)}
-              className={`flex items-center gap-2 p-2 rounded-xl border text-left transition cursor-pointer text-xs ${
+              className={`p-2.5 rounded-xl text-left border transition cursor-pointer flex flex-col justify-between gap-2 ${
                 isActive
-                  ? 'bg-blue-600 border-blue-400 text-white font-bold shadow-sm'
-                  : 'bg-[#040e22] hover:bg-blue-950/60 border-blue-900/30 text-slate-300'
+                  ? 'bg-blue-600/30 border-amber-400 text-white shadow-md ring-1 ring-amber-400/50'
+                  : 'bg-[#030e20] hover:bg-blue-950 border-blue-900/50 text-slate-300'
               }`}
             >
-              <div className="shrink-0">{getScenarioIcon(sc.id)}</div>
-              <div className="truncate">
-                <div className="text-[11px] font-bold truncate">
-                  {language === 'hi' ? sc.nameHi.split(' ')[0] : sc.name.split(' ')[0]}
+              <div className="flex items-center justify-between">
+                <div className="p-1 rounded-md bg-blue-900/40">
+                  {getScenarioIcon(sc.id)}
+                </div>
+                {isActive && (
+                  <span className="text-[9px] font-bold font-mono-data text-amber-300 bg-black/40 px-1 rounded">
+                    ACTIVE
+                  </span>
+                )}
+              </div>
+              <div>
+                <div className="text-xs font-bold text-white truncate">
+                  {language === 'en' ? sc.name : sc.nameHi}
+                </div>
+                <div className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">
+                  {sc.description}
                 </div>
               </div>
             </button>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };

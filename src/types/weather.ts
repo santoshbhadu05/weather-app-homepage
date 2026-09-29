@@ -189,3 +189,42 @@ export interface WeatherScenario {
   description: string;
   data: Partial<WeatherData>;
 }
+
+export type SupportedLanguage =
+  | 'hi'
+  | 'en'
+  | 'bn'
+  | 'mr'
+  | 'te'
+  | 'ta'
+  | 'gu'
+  | 'ur'
+  | 'kn'
+  | 'or'
+  | 'ml'
+  | 'pa'
+  | 'as'
+  | 'sa';
+
+export interface LanguageOption {
+  code: SupportedLanguage;
+  name: string;
+  nativeName: string;
+}
+
+export const RECOGNIZED_INDIAN_LANGUAGES: LanguageOption[] = [
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
+  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
+  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া' },
+  { code: 'sa', name: 'Sanskrit', nativeName: 'संस्कृतम्' },
+];

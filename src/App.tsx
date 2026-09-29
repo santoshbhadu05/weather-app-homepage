@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { METEOROLOGICAL_STATIONS } from './data/mockStations';
-import { DailyForecast, HourlyForecast, PersonaType, WeatherData, WeatherScenario, WeatherStation } from './types/weather';
+import { DailyForecast, HourlyForecast, PersonaType, WeatherData, WeatherScenario, WeatherStation, SupportedLanguage } from './types/weather';
 import { fetchStationWeather } from './services/weatherService';
 import { Header } from './components/Header';
 import { ProminentVoiceWarningBanner } from './components/ProminentVoiceWarningBanner';
@@ -23,7 +23,7 @@ export const App: React.FC = () => {
   const [hourlyForecast, setHourlyForecast] = useState<HourlyForecast[]>([]);
   const [dailyForecast, setDailyForecast] = useState<DailyForecast[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [language, setLanguage] = useState<'en' | 'hi'>('hi'); // Default Hindi for authentic Mausam experience
+  const [language, setLanguage] = useState<SupportedLanguage>('hi'); // Default Hindi
   const [activeTab, setActiveTab] = useState<string>('nowcast');
   
   // Multi-Select Personas: User can select multiple roles simultaneously!
@@ -50,7 +50,6 @@ export const App: React.FC = () => {
   const routineRef = useRef<HTMLDivElement>(null);
   const travelRef = useRef<HTMLDivElement>(null);
   const radarRef = useRef<HTMLDivElement>(null);
-  const simulationRef = useRef<HTMLDivElement>(null);
 
   // Track TTS playback state
   useEffect(() => {
@@ -62,7 +61,6 @@ export const App: React.FC = () => {
   // Fetch weather data for selected station
   const loadStationData = useCallback(async (station: WeatherStation) => {
     setIsLoading(true);
-    setCurrentScenario(null);
     try {
       const res = await fetchStationWeather(station);
       setLiveWeather(res.weather);
@@ -113,19 +111,13 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleToggleLanguage = () => {
-    setLanguage((prev) => (prev === 'en' ? 'hi' : 'en'));
-  };
-
   const handleSelectTab = (tab: string) => {
     setActiveTab(tab);
     if (tab === 'nowcast') nowcastRef.current?.scrollIntoView({ behavior: 'smooth' });
     else if (tab === 'forecast') forecastRef.current?.scrollIntoView({ behavior: 'smooth' });
     else if (tab === 'warnings') warningsRef.current?.scrollIntoView({ behavior: 'smooth' });
     else if (tab === 'routine') routineRef.current?.scrollIntoView({ behavior: 'smooth' });
-    else if (tab === 'travel') travelRef.current?.scrollIntoView({ behavior: 'smooth' });
     else if (tab === 'radar') radarRef.current?.scrollIntoView({ behavior: 'smooth' });
-    else if (tab === 'simulation') simulationRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
@@ -135,7 +127,7 @@ export const App: React.FC = () => {
         currentStation={currentStation}
         onSelectStation={(st) => setCurrentStation(st)}
         language={language}
-        onToggleLanguage={handleToggleLanguage}
+        onSelectLanguage={(lang) => setLanguage(lang)}
         onOpenBulletin={() => setIsBulletinOpen(true)}
         isSimulated={Boolean(currentScenario)}
         onResetSimulation={handleResetSimulation}
@@ -151,14 +143,14 @@ export const App: React.FC = () => {
           <div className="flex flex-col items-center justify-center py-28 space-y-3">
             <div className="h-10 w-10 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin"></div>
             <p className="text-xs font-mono-data text-slate-400">
-              {language === 'hi'
-                ? `वेधशाला स्टेशन ${currentStation.name} का डेटा लोड हो रहा है...`
-                : `Fetching synoptic data for ${currentStation.name}...`}
+              {language === 'en'
+                ? `Fetching synoptic data for ${currentStation.name}...`
+                : `वेधशाला स्टेशन ${currentStation.name} का डेटा लोड हो रहा है...`}
             </p>
           </div>
         ) : (
           <>
-            {/* 1. TOP PRIORITY: Clean Highlighted Warning with Voice Icon (No extra headlines/lines) */}
+            {/* 1. TOP PRIORITY: Direct Warning (No bulletin headline, color-coded, with color guide) */}
             <div ref={warningsRef}>
               <ProminentVoiceWarningBanner
                 weather={activeWeather}
@@ -166,7 +158,7 @@ export const App: React.FC = () => {
               />
             </div>
 
-            {/* 2. Personalized Box: All Selected Roles Shown Together + Voice Feature (No duplicate filter tab) */}
+            {/* 2. Personalized Box: Clean Weather Information (No role tags on cards) + Direct Suggestions & Precautions + Local Secondary Alerts */}
             <div ref={nowcastRef}>
               <PersonalizedHomepageCard
                 weather={activeWeather}
@@ -174,23 +166,10 @@ export const App: React.FC = () => {
                 selectedPersonas={selectedPersonas}
                 onTogglePersona={handleTogglePersona}
                 onOpenFullWeather={() => setIsFullWeatherOpen(true)}
-                onOpenCopilot={() => {
-                  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                }}
               />
             </div>
 
-            {/* 3. Daily Routine Analyzer: Filtered according to selected roles, live data based, no extra clutter */}
-            <div ref={routineRef}>
-              <DailyRoutineAnalyzer
-                weather={activeWeather}
-                hourly={hourlyForecast}
-                language={language}
-                selectedPersonas={selectedPersonas}
-              />
-            </div>
-
-            {/* 4. Travel Route Weather Analyzer: ONLY SHOWN IF 'travelers' ROLE IS SELECTED */}
+            {/* 3. Travel Route Weather Analyzer: PLACED ABOVE DAILY ROUTINE (Only shown if 'travelers' is selected) */}
             {selectedPersonas.includes('travelers') && (
               <div ref={travelRef}>
                 <TravelDestinationAnalyzer
@@ -199,6 +178,16 @@ export const App: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* 4. Daily Routine Analyzer: Filtered according to selected roles, live data based */}
+            <div ref={routineRef}>
+              <DailyRoutineAnalyzer
+                weather={activeWeather}
+                hourly={hourlyForecast}
+                language={language}
+                selectedPersonas={selectedPersonas}
+              />
+            </div>
 
             {/* 5. 24-Hour Synoptic Trend & 7-Day District Forecast */}
             <div ref={forecastRef}>
@@ -217,8 +206,8 @@ export const App: React.FC = () => {
               />
             </div>
 
-            {/* 7. Live Meteorological Stress Simulator Bar */}
-            <div ref={simulationRef}>
+            {/* 7. Meteorological Simulation Lab at the bottom */}
+            <div>
               <WeatherSimulationBar
                 currentScenarioId={currentScenario?.id ?? null}
                 onApplyScenario={handleApplyScenario}

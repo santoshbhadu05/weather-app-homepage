@@ -1,172 +1,137 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Send,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  Bot,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
   ChevronDown,
   ChevronUp,
   X,
-  MessageSquare,
+  Bot,
 } from 'lucide-react';
-import { PersonaType, WeatherData } from '../types/weather';
+import { PersonaType, WeatherData, SupportedLanguage } from '../types/weather';
+import { t } from '../data/translations';
+import { ttsService } from '../services/ttsService';
+import {
+  CopilotAnswer,
+  getCopilotPresetQuestions,
+  answerInNativeLanguage,
+} from '../data/copilotKnowledge';
 
 interface AiWeatherCopilotProps {
   weather: WeatherData;
-  language: 'en' | 'hi';
+  language: SupportedLanguage;
   selectedPersona: PersonaType;
   onOpenFullWeather: () => void;
 }
 
-interface CopilotAnswer {
-  verdict: 'GO' | 'CAUTION' | 'NO-GO';
-  title: string;
-  explanation: string;
-  timeWindow?: string;
-  officialRef: string;
-}
-
-const PRESET_QUESTIONS: { id: string; persona: PersonaType; qEn: string; qHi: string }[] = [
-  {
-    id: 'q-child',
-    persona: 'parents',
-    qEn: 'Is it safe for children to play outside this evening?',
-    qHi: 'क्या आज शाम बच्चों का बाहर खेलना सुरक्षित है?',
-  },
-  {
-    id: 'q-crops',
-    persona: 'agriculture',
-    qEn: 'Best time to irrigate or spray crops today?',
-    qHi: 'फसलों में सिंचाई या कीटनाशक छिड़काव का सही समय?',
-  },
-  {
-    id: 'q-travel',
-    persona: 'travelers',
-    qEn: 'Should I expect flight/highway delays or rain?',
-    qHi: 'क्या उड़ान या हाईवे पर मौसम से देरी होगी?',
-  },
-  {
-    id: 'q-run',
-    persona: 'fitness',
-    qEn: 'What is the best hour for morning running?',
-    qHi: 'सुबह दौड़ने का सबसे अनुकूल समय क्या है?',
-  },
-  {
-    id: 'q-health',
-    persona: 'health',
-    qEn: 'Is AQI safe for asthma & sensitive groups today?',
-    qHi: 'क्या आज अस्थमा व एलर्जी मरीजों के लिए बाहर जाना सुरक्षित है?',
-  },
-  {
-    id: 'q-commute',
-    persona: 'commuters',
-    qEn: 'Will there be underpass waterlogging or major jams?',
-    qHi: 'क्या बारिश से अंडरपास में जलभराव या जाम का खतरा है?',
-  },
-  {
-    id: 'q-event',
-    persona: 'events',
-    qEn: 'Will rain or high wind affect evening outdoor tent?',
-    qHi: 'क्या शाम के आउटडोर कार्यक्रम में बारिश या आंधी का खतरा है?',
-  },
-  {
-    id: 'q-surf',
-    persona: 'surfers',
-    qEn: 'Is sea condition safe for swimming and beach walking?',
-    qHi: 'क्या समुद्र में नहाना या बीच पर जाना सुरक्षित है?',
-  },
-];
+const BCP47_LANGUAGE_MAP: Record<SupportedLanguage, string> = {
+  hi: 'hi-IN',
+  en: 'en-IN',
+  bn: 'bn-IN',
+  mr: 'mr-IN',
+  te: 'te-IN',
+  ta: 'ta-IN',
+  gu: 'gu-IN',
+  ur: 'ur-IN',
+  kn: 'kn-IN',
+  or: 'or-IN',
+  ml: 'ml-IN',
+  pa: 'pa-IN',
+  as: 'as-IN',
+  sa: 'sa-IN',
+};
 
 export const AiWeatherCopilot: React.FC<AiWeatherCopilotProps> = ({
   weather,
   language,
-  selectedPersona,
-  onOpenFullWeather,
 }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [customQuestion, setCustomQuestion] = useState<string>('');
   const [customAnswer, setCustomAnswer] = useState<CopilotAnswer | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [isPlayingAnswer, setIsPlayingAnswer] = useState<boolean>(false);
 
-  // Generate answer based on live weather data
-  const generateAnswerFor = (questionText: string): CopilotAnswer => {
-    const qLower = questionText.toLowerCase();
+  const presetQuestions = getCopilotPresetQuestions(language);
 
-    if (qLower.includes('rain') || qLower.includes('बारिश') || qLower.includes('tent') || qLower.includes('waterlog')) {
-      if (weather.precipitationChance > 50 || weather.activeAlert?.severity === 'orange') {
-        return {
-          verdict: 'NO-GO',
-          title: language === 'hi' ? 'वर्षा एवं जलभराव का उच्च खतरा' : 'High Precipitation & Inundation Risk',
-          explanation:
-            language === 'hi'
-              ? `वर्षा की संभावना ${weather.precipitationChance}% है। अंडरपास में पानी भरने तथा आउटडोर इवेंट में शामियाने भीगने का अंदेशा है। वाटरप्रूफ व्यवस्था करें।`
-              : `Precipitation probability is ${weather.precipitationChance}%. Expect waterlogging at low-lying transit nodes and slippery surfaces. Waterproof shelter required.`,
-          timeWindow: 'Next 4-6 Hours',
-          officialRef: 'IMD Doppler Radar Reflectivity & Nowcast',
-        };
-      } else {
-        return {
-          verdict: 'GO',
-          title: language === 'hi' ? 'मौसम अनुकूल एवं वर्षा की संभावना कम' : 'Dry & Clear Window',
-          explanation:
-            language === 'hi'
-              ? `वर्षा की संभावना मात्र ${weather.precipitationChance}% है। खुले में कार्य, यात्रा एवं शाम के कार्यक्रम पूरी तरह सुरक्षित हैं।`
-              : `Precipitation probability is very low (${weather.precipitationChance}%). Open-air events, outdoor play, and highway travel are completely viable.`,
-          timeWindow: 'Full Day',
-          officialRef: 'IMD NWFC Synoptic Guidance',
-        };
-      }
+  // Track TTS
+  useEffect(() => {
+    return ttsService.subscribe((state) => {
+      setIsPlayingAnswer(state.isPlaying);
+    });
+  }, []);
+
+  // Speech Recognition (Microphone input in user's native language)
+  const handleToggleListening = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
     }
 
-    if (qLower.includes('run') || qLower.includes('fitness') || qLower.includes('दौड़')) {
-      return {
-        verdict: weather.feelsLike > 36 ? 'CAUTION' : 'GO',
-        title: language === 'hi' ? 'सुबह 5:30 - 7:30 बजे सर्वोत्तम समय' : 'Early Dawn Window Recommended',
-        explanation:
-          language === 'hi'
-            ? `सुबह का तापमान (${weather.temperature - 4}°C) अनुकूल रहेगा। दोपहर में उमस और हीट इंडेक्स बढ़ेगा, इसलिए सुबह ही दौड़ पूरी करें।`
-            : `Favorable thermal gradient between 05:30 AM and 07:30 AM. Avoid mid-day workouts as apparent heat index exceeds 35°C.`,
-        timeWindow: '05:30 AM - 07:30 AM',
-        officialRef: 'IMD Biometeorological Advisory',
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert(
+        language === 'en'
+          ? 'Voice speech recognition not supported in this browser. Please type your question.'
+          : 'आपके ब्राउज़र में वॉइस रिकग्निशन समर्थित नहीं है। कृपया टाइप करें।'
+      );
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = BCP47_LANGUAGE_MAP[language] || 'hi-IN';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
       };
-    }
 
-    if (qLower.includes('crop') || qLower.includes('फसल') || qLower.includes('सिंचाई')) {
-      const isRainComing = weather.precipitationChance > 40;
-      return {
-        verdict: isRainComing ? 'CAUTION' : 'GO',
-        title: isRainComing ? (language === 'hi' ? 'कीटनाशक छिड़काव अभी रोकें' : 'Hold Chemical Sprays') : (language === 'hi' ? 'सिंचाई व छिड़काव हेतु अनुकूल' : 'Optimal for Agri Operations'),
-        explanation: isRainComing
-          ? (language === 'hi' ? `आगामी घंटों में वर्षा की संभावना है जिससे छिड़काव धुल सकता है। मौसम साफ होने तक प्रतीक्षा करें।` : `Rain probability is elevated. Spraying pesticides now would cause chemical runoff. Postpone by 24 hours.`)
-          : (language === 'hi' ? `मृदा नमी ${weather.agriculture?.soilMoisture || 40}% है। आज शाम हल्की सिंचाई व कीटनाशक छिड़काव के लिए उत्तम समय है।` : `Soil moisture is at ${weather.agriculture?.soilMoisture || 40}%. Ideal meteorological window for fertigation and weeding.`),
-        timeWindow: 'Afternoon / Evening',
-        officialRef: 'Gramin Krishi Mausam Sewa (GKMS)',
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setCustomQuestion(transcript);
+        handleAskQuestion(transcript);
+        setIsListening(false);
       };
-    }
 
-    // Default response
-    return {
-      verdict: weather.activeAlert ? 'CAUTION' : 'GO',
-      title: language === 'hi' ? 'वर्तमान मौसम स्थिति अनुकूल' : 'Current Weather Parameters Analyzed',
-      explanation:
-        language === 'hi'
-          ? `वर्तमान तापमान ${weather.temperature}°C, आर्द्रता ${weather.humidity}%, AQI ${weather.aqi}। मौसम अनुसार सामान्य सावधानी बरतते हुए कार्य कर सकते हैं।`
-          : `Surface temperature is ${weather.temperature}°C, humidity ${weather.humidity}%, AQI ${weather.aqi}. Routine activities proceed safely with standard precautions.`,
-      timeWindow: 'Current Synoptic Hours',
-      officialRef: 'IMD Automatic Weather Station Log',
-    };
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.warn('Speech recognition error:', err);
+      setIsListening(false);
+    }
   };
 
-  const handleAskQuestion = (qText: string) => {
+  // Generate answer in user's selected language
+  const handleAskQuestion = (questionText: string) => {
+    setSelectedQuestion(questionText);
+    setCustomQuestion(questionText);
     setIsAnalyzing(true);
-    setSelectedQuestion(qText);
+    setCustomAnswer(null);
+
     setTimeout(() => {
-      setCustomAnswer(generateAnswerFor(qText));
+      const answer = answerInNativeLanguage(questionText, weather, language);
+      setCustomAnswer(answer);
       setIsAnalyzing(false);
-    }, 300);
+
+      // Auto speak response in that exact native language
+      const speechText = `${answer.title}। ${answer.explanation}`;
+      ttsService.speak(speechText, language);
+    }, 400);
   };
 
   const handleSubmitCustom = (e: React.FormEvent) => {
@@ -175,57 +140,57 @@ export const AiWeatherCopilot: React.FC<AiWeatherCopilotProps> = ({
     handleAskQuestion(customQuestion);
   };
 
-  // Quick preset pills for bottom bar
-  const quickPills = PRESET_QUESTIONS.slice(0, 3);
-
   return (
     <aside
-      aria-label="Mausam Mitra Weather Copilot"
-      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 max-w-4xl w-[95%] sm:w-full px-2 pointer-events-auto transition-all duration-300"
+      aria-label="AI Weather Copilot"
+      className="fixed bottom-0 left-0 right-0 z-40 px-3 sm:px-6 lg:px-8 pointer-events-none"
     >
-      <div className="rounded-2xl border-2 border-blue-500/80 bg-[#061838]/95 backdrop-blur-xl shadow-2xl shadow-black/80 overflow-hidden">
-        {/* Top Header Bar of Floating Widget */}
+      <div className="max-w-4xl mx-auto rounded-t-2xl border-t-2 border-x-2 border-blue-500/80 bg-[#061838] shadow-2xl pointer-events-auto backdrop-blur-md overflow-hidden transition-all duration-300">
+        {/* Minimized / Header Bar */}
         <div
           onClick={() => setIsExpanded(!isExpanded)}
-          className="px-3.5 py-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-blue-900/30 transition select-none"
+          className="px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-3 cursor-pointer bg-gradient-to-r from-blue-900/60 via-[#071d42] to-blue-900/60 hover:bg-blue-900/80 transition"
         >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="p-1.5 rounded-lg bg-amber-400 text-slate-950 shadow-md shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-1.5 rounded-lg bg-blue-600 text-white shrink-0 shadow">
               <Bot className="h-4 w-4" />
             </div>
-            <div className="truncate">
-              <span className="text-xs sm:text-sm font-black text-white mr-1.5">
-                {language === 'hi' ? 'मौसम मित्र' : 'Mausam Mitra'}
-              </span>
-              <span className="text-[10px] text-amber-300 font-mono-data hidden sm:inline">
-                | AI Weather Copilot
-              </span>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight truncate">
+                  {t('copilotTitle', language)}
+                </span>
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-400 text-slate-950 shrink-0">
+                  {language.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-300 truncate">
+                {t('copilotSub', language)}
+              </p>
             </div>
           </div>
 
-          {/* Quick pills shown when collapsed */}
-          {!isExpanded && (
-            <div className="hidden md:flex items-center gap-1.5 overflow-hidden">
-              {quickPills.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded(true);
-                    handleAskQuestion(language === 'hi' ? p.qHi : p.qEn);
-                  }}
-                  className="px-2 py-0.5 rounded-full text-[10px] bg-blue-950/80 hover:bg-blue-900 text-slate-200 border border-blue-800/60 truncate max-w-[200px]"
-                >
-                  {language === 'hi' ? p.qHi : p.qEn}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Expand / Collapse toggle icon */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Quick Voice Mic Button right on header */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(true);
+                handleToggleListening();
+              }}
+              className={`p-1.5 rounded-full transition cursor-pointer ${
+                isListening
+                  ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-400'
+                  : 'bg-blue-800 text-amber-300 hover:bg-blue-700'
+              }`}
+              title={isListening ? 'Listening...' : 'Speak in your language'}
+            >
+              {isListening ? <Mic className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+            </button>
+
             <span className="text-[11px] font-bold text-amber-300 hidden sm:inline">
-              {isExpanded ? (language === 'hi' ? 'बंद करें' : 'Collapse') : (language === 'hi' ? 'पूछें' : 'Ask Copilot')}
+              {isExpanded ? t('close', language) : t('copilotSend', language)}
             </span>
             <div className="p-1 rounded-md bg-blue-900/60 text-white">
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -236,26 +201,25 @@ export const AiWeatherCopilot: React.FC<AiWeatherCopilotProps> = ({
         {/* Expanded Drawer Content */}
         {isExpanded && (
           <div className="p-3.5 sm:p-4 border-t border-blue-900/50 max-h-[70vh] overflow-y-auto space-y-3">
-            {/* Suggested Question Chips */}
+            {/* Suggested Question Chips in Native Language */}
             <div className="space-y-1.5">
               <div className="text-[11px] font-bold text-slate-300">
-                {language === 'hi' ? 'त्वरित प्रश्न चुनें:' : 'Quick Questions:'}
+                {t('copilotQuickQuestions', language)}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {PRESET_QUESTIONS.map((q) => {
-                  const text = language === 'hi' ? q.qHi : q.qEn;
-                  const isCur = selectedQuestion === text;
+                {presetQuestions.map((q) => {
+                  const isCur = selectedQuestion === q.text;
                   return (
                     <button
                       key={q.id}
-                      onClick={() => handleAskQuestion(text)}
+                      onClick={() => handleAskQuestion(q.text)}
                       className={`text-[11px] px-2.5 py-1 rounded-lg transition cursor-pointer border ${
                         isCur
                           ? 'bg-amber-400 text-slate-950 font-bold border-amber-300'
                           : 'bg-[#030d1d] hover:bg-blue-950 text-slate-200 border-blue-900/60'
                       }`}
                     >
-                      {text}
+                      {q.text}
                     </button>
                   );
                 })}
@@ -266,7 +230,7 @@ export const AiWeatherCopilot: React.FC<AiWeatherCopilotProps> = ({
             {isAnalyzing && (
               <div className="p-3 rounded-xl bg-[#030d1d] border border-blue-900/40 flex items-center gap-2 text-xs text-amber-300 font-mono-data">
                 <span className="h-3 w-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></span>
-                <span>{language === 'hi' ? 'मौसम डेटा विश्लेषित हो रहा है...' : 'Analyzing synoptic observations...'}</span>
+                <span>{t('copilotAnalyzing', language)}</span>
               </div>
             )}
 
@@ -290,42 +254,80 @@ export const AiWeatherCopilot: React.FC<AiWeatherCopilotProps> = ({
                     </span>
                   </div>
 
-                  {customAnswer.timeWindow && (
-                    <span className="text-[10px] font-mono-data text-amber-300 bg-black/40 px-2 py-0.5 rounded">
-                      {customAnswer.timeWindow}
-                    </span>
-                  )}
+                  {/* Speaker Button to Hear AI's Response in User's Language */}
+                  <button
+                    onClick={() => {
+                      if (isPlayingAnswer) {
+                        ttsService.stop();
+                      } else {
+                        ttsService.speak(
+                          `${customAnswer.title}। ${customAnswer.explanation}`,
+                          language
+                        );
+                      }
+                    }}
+                    className={`p-1.5 rounded-full transition cursor-pointer shrink-0 ${
+                      isPlayingAnswer
+                        ? 'bg-white text-rose-950 animate-pulse'
+                        : 'bg-blue-900 hover:bg-blue-800 text-amber-300'
+                    }`}
+                    title="Listen response"
+                  >
+                    {isPlayingAnswer ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                  </button>
                 </div>
 
                 <p className="text-xs text-slate-200 leading-relaxed font-medium">
                   {customAnswer.explanation}
                 </p>
 
-                <div className="text-[10px] font-mono-data text-slate-400 border-t border-white/5 pt-1.5">
-                  Ref: {customAnswer.officialRef}
+                <div className="text-[10px] font-mono-data text-slate-400 border-t border-white/5 pt-1.5 flex items-center justify-between">
+                  <span>Ref: {customAnswer.officialRef}</span>
+                  {customAnswer.timeWindow && (
+                    <span className="text-amber-300">{customAnswer.timeWindow}</span>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Custom Question Form */}
+            {/* Custom Question Form with Native Voice Input */}
             <form onSubmit={handleSubmitCustom} className="flex gap-2">
               <input
                 type="text"
                 value={customQuestion}
                 onChange={(e) => setCustomQuestion(e.target.value)}
                 placeholder={
-                  language === 'hi'
-                    ? 'मौसम मित्र से अपना प्रश्न पूछें...'
-                    : 'Ask Mausam Mitra any weather question...'
+                  isListening
+                    ? t('copilotListening', language)
+                    : t('copilotPlaceholder', language)
                 }
-                className="flex-1 bg-[#030d1d] border border-blue-900/60 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                className={`flex-1 bg-[#030d1d] border rounded-xl px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none transition ${
+                  isListening
+                    ? 'border-rose-500 ring-2 ring-rose-500/50'
+                    : 'border-blue-900/60 focus:border-amber-400'
+                }`}
               />
+
+              {/* Mic Button */}
+              <button
+                type="button"
+                onClick={handleToggleListening}
+                className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center justify-center transition cursor-pointer shrink-0 shadow ${
+                  isListening
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                    : 'bg-[#040e22] hover:bg-blue-900 text-amber-300 border border-blue-900/60'
+                }`}
+                title={isListening ? 'Stop listening' : 'Speak your question in your language'}
+              >
+                {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+              </button>
+
               <button
                 type="submit"
                 className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 shadow"
               >
                 <Send className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{language === 'hi' ? 'पूछें' : 'Send'}</span>
+                <span className="hidden sm:inline">{t('copilotSend', language)}</span>
               </button>
             </form>
           </div>
